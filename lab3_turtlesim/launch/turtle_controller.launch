@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- 
+    TurtleSim Controller Launch File
+    Starts TurtleSim and the keyboard controller together
+  -->
+  
+  <!-- Start TurtleSim node -->
+  <node pkg="turtlesim" type="turtlesim_node" name="turtlesim" output="screen"/>
+  
+  <!-- Start Turtle Controller -->
+  <arg name="turtle_name" default="turtle1"/>
+  <node pkg="lab3_turtlesim" type="turtle_controller.py" name="turtle_controller" 
+        args="$(arg turtle_name)" output="screen" required="true"/>
+        
+</launch>
