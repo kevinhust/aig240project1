@@ -4,66 +4,61 @@ Seneca Polytechnic - AIG240 Robotics
 
 ## Overview
 
-A ROS1 keyboard controller for TurtleSim that supports **multi-key simultaneous input** for diagonal/curved movement paths.
+A ROS1 keyboard controller for TurtleSim with diagonal movement support using `q/e/z/c` keys.
+
+**Compatible with**: ROS Melodic (Python 2.7) and ROS Noetic (Python 3)
 
 ## Features
 
-- **Multi-key Support**: Press `w + a` together for forward-left curve
-- **Contradicting Key Handling**: Pressing `w + s` cancels out (no movement)
+- **Keyboard Control**: Use `w/a/s/d` for basic movement
+- **Diagonal Movement**: `q/e/z/c` for curved paths (forward-left, forward-right, etc.)
 - **Instant Stop**: Turtle stops immediately when keys are released
-- **Diagonal Shortcuts**: `q`, `e`, `z`, `c` for quick diagonal movement
+- **No External Dependencies**: Uses only standard Python libraries
 
 ## Controls
 
-| Key(s) | Action |
-|--------|--------|
+| Key | Action |
+|-----|--------|
 | `w` | Forward |
 | `s` | Backward |
 | `a` | Turn Left |
 | `d` | Turn Right |
-| `w + a` | Forward + Left (curve) |
-| `w + d` | Forward + Right (curve) |
-| `q` | Forward-Left shortcut |
-| `e` | Forward-Right shortcut |
-| `z` | Backward-Left shortcut |
-| `c` | Backward-Right shortcut |
-| `ESC` | Exit controller |
+| `q` | Forward + Left (curve) |
+| `e` | Forward + Right (curve) |
+| `z` | Backward + Left |
+| `c` | Backward + Right |
+| `Ctrl+C` | Exit |
 
 ## Installation
 
-### Prerequisites
-
-- ROS1 (Melodic/Noetic)
-- Python 2.7+ or 3.x
-- pynput library
-
-### Setup
+### Quick Setup
 
 ```bash
-# 1. Install pynput
-pip install pynput
-
-# 2. Clone this repository to your catkin workspace
-cd ~/catkin_ws/src
+# 1. Clone repository
+cd ~
 git clone https://github.com/kevinhust/aig240project1.git
 cd aig240project1
 
-# 3. Copy the ROS package
+# 2. Run setup script
+chmod +x setup.sh
+./setup.sh
+```
+
+### Manual Setup
+
+```bash
+# 1. Copy package to catkin workspace
 cp -r lab3_turtlesim ~/catkin_ws/src/
 
-# 4. Build
+# 2. Make script executable
+chmod +x ~/catkin_ws/src/lab3_turtlesim/scripts/turtle_controller.py
+
+# 3. Build
 cd ~/catkin_ws
 catkin_make
 
-# 5. Source the workspace
+# 4. Source workspace
 source ~/catkin_ws/devel/setup.bash
-```
-
-Or use the setup script:
-
-```bash
-chmod +x setup.sh
-./setup.sh
 ```
 
 ## Usage
@@ -105,7 +100,7 @@ aig240project1/
 
 ## Assessment Questions
 
-See [assessment_answers.md](assessment_answers.md) for detailed answers to:
+See [assessment_answers.md](assessment_answers.md) for answers to:
 
 1. What command did you use to create a ROS package?
 2. Explain why and how you used ROS messages in your program.
