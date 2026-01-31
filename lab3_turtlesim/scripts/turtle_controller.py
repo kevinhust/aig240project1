@@ -1,26 +1,33 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-ROS1 TurtleSim Multi-Key Controller
-Supports simultaneous key presses (e.g., w+a for forward-left)
-AIG240 Project 1
+ROS1 TurtleSim Keyboard Controller
+Controls turtle movement using keyboard input (w/a/s/d and q/e/z/c)
+Compatible with Python 2.7 (ROS Melodic)
 
-Requires: pip install pynput
+AIG240 Project 1 - Single Key Mode (Easy Version)
+- q/e/z/c provide diagonal movement shortcuts
+- Turtle STOPS when key is released (meets project requirement)
 """
 
 import rospy
 import sys
-import threading
+import termios
+import tty
+import select
 from geometry_msgs.msg import Twist
 
-try:
-    from pynput import keyboard
-except ImportError:
-    print("=" * 50)
-    print("Error: pynput not installed!")
-    print("Please run: pip install pynput")
-    print("=" * 50)
-    sys.exit(1)
+# Key bindings: (linear_velocity, angular_velocity)
+KEY_BINDINGS = {
+    'w': (1.0, 0.0),    # Forward
+    's': (-1.0, 0.0),   # Backward
+    'a': (0.0, 1.0),    # Turn left
+    'd': (0.0, -1.0),   # Turn right
+    'q': (1.0, 1.0),    # Forward + left (circular path)
+    'e': (1.0, -1.0),   # Forward + right (circular path)
+    'z': (-1.0, 1.0),   # Backward + left
+    'c': (-1.0, -1.0),  # Backward + right
+}
 
 # Movement speeds
 LINEAR_SPEED = 2.0
@@ -28,21 +35,10 @@ ANGULAR_SPEED = 2.0
 
 
 class TurtleController:
-    """
-    Multi-key keyboard controller for TurtleSim.
-    
-    Supports simultaneous key presses:
-    - w + a = forward + left turn (circular path)
-    - Contradicting keys (w + s) cancel out
-    """
+    """Keyboard controller for TurtleSim using standard Python libraries"""
     
     def __init__(self, turtle_name):
         self.turtle_name = turtle_name
-        
-        # Track currently pressed keys
-        self.pressed_keys = set()
-        self.lock = threading.Lock()
-        self.running = True
         
         # Initialize ROS node
         rospy.init_node('turtle_controller', anonymous=True)
@@ -51,107 +47,73 @@ class TurtleController:
         topic_name = '/{}/cmd_vel'.format(turtle_name)
         self.pub = rospy.Publisher(topic_name, Twist, queue_size=10)
         
+        # Store original terminal settings
+        self.old_settings = termios.tcgetattr(sys.stdin)
+        
         rospy.loginfo("=" * 50)
         rospy.loginfo("Turtle Controller started for: {}".format(turtle_name))
         rospy.loginfo("=" * 50)
         rospy.loginfo("Controls:")
         rospy.loginfo("  w = forward    s = backward")
         rospy.loginfo("  a = turn left  d = turn right")
-        rospy.loginfo("  Combine keys: w+a = forward-left curve")
-        rospy.loginfo("  q/e/z/c = diagonal shortcuts")
-        rospy.loginfo("  ESC = exit")
+        rospy.loginfo("  q = forward-left   e = forward-right")
+        rospy.loginfo("  z = backward-left  c = backward-right")
+        rospy.loginfo("  Ctrl+C = exit")
         rospy.loginfo("=" * 50)
     
-    def on_press(self, key):
-        """Handle key press events"""
-        try:
-            k = key.char.lower()
-            with self.lock:
-                self.pressed_keys.add(k)
-        except AttributeError:
-            # Special key (ESC, etc.)
-            if key == keyboard.Key.esc:
-                self.running = False
-                return False  # Stop listener
-    
-    def on_release(self, key):
-        """Handle key release events"""
-        try:
-            k = key.char.lower()
-            with self.lock:
-                self.pressed_keys.discard(k)
-        except AttributeError:
-            pass
-    
-    def calculate_velocity(self):
+    def get_key(self, timeout=0.1):
         """
-        Calculate velocity based on currently pressed keys.
-        Contradicting keys cancel each other out.
+        Get a single keypress with timeout.
+        Returns empty string if no key pressed within timeout.
         """
-        linear = 0.0
-        angular = 0.0
+        tty.setraw(sys.stdin.fileno())
+        rlist, _, _ = select.select([sys.stdin], [], [], timeout)
         
-        with self.lock:
-            keys = self.pressed_keys.copy()
+        if rlist:
+            key = sys.stdin.read(1)
+        else:
+            key = ''
         
-        # Handle diagonal shortcut keys first
-        if 'q' in keys:
-            return 1.0, 1.0  # forward + left
-        elif 'e' in keys:
-            return 1.0, -1.0  # forward + right
-        elif 'z' in keys:
-            return -1.0, 1.0  # backward + left
-        elif 'c' in keys:
-            return -1.0, -1.0  # backward + right
-        
-        # Handle w/s for linear movement (contradicting = no movement)
-        if 'w' in keys and 's' in keys:
-            linear = 0.0  # Contradicting - no movement
-        elif 'w' in keys:
-            linear = 1.0
-        elif 's' in keys:
-            linear = -1.0
-        
-        # Handle a/d for angular movement (contradicting = no rotation)
-        if 'a' in keys and 'd' in keys:
-            angular = 0.0  # Contradicting - no rotation
-        elif 'a' in keys:
-            angular = 1.0
-        elif 'd' in keys:
-            angular = -1.0
-        
-        return linear, angular
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)
+        return key
+    
+    def create_twist_msg(self, linear, angular):
+        """Create a Twist message with given velocities"""
+        twist = Twist()
+        twist.linear.x = linear * LINEAR_SPEED
+        twist.linear.y = 0.0
+        twist.linear.z = 0.0
+        twist.angular.x = 0.0
+        twist.angular.y = 0.0
+        twist.angular.z = angular * ANGULAR_SPEED
+        return twist
+    
+    def stop_turtle(self):
+        """Stop the turtle by publishing zero velocity"""
+        stop_msg = self.create_twist_msg(0.0, 0.0)
+        self.pub.publish(stop_msg)
     
     def run(self):
         """Main control loop"""
-        # Start keyboard listener in separate thread
-        listener = keyboard.Listener(
-            on_press=self.on_press,
-            on_release=self.on_release
-        )
-        listener.start()
-        
         rate = rospy.Rate(20)  # 20 Hz
         
         try:
-            while not rospy.is_shutdown() and self.running and listener.running:
-                linear, angular = self.calculate_velocity()
+            while not rospy.is_shutdown():
+                key = self.get_key()
                 
-                # Create and publish Twist message
-                twist = Twist()
-                twist.linear.x = linear * LINEAR_SPEED
-                twist.linear.y = 0.0
-                twist.linear.z = 0.0
-                twist.angular.x = 0.0
-                twist.angular.y = 0.0
-                twist.angular.z = angular * ANGULAR_SPEED
+                if key == '\x03':  # Ctrl+C
+                    break
                 
-                self.pub.publish(twist)
-                
-                # Log movement (throttled to avoid spam)
-                if linear != 0 or angular != 0:
-                    rospy.loginfo_throttle(0.5, "Moving: linear={:.1f}, angular={:.1f}".format(
-                        twist.linear.x, twist.angular.z))
+                if key in KEY_BINDINGS:
+                    linear, angular = KEY_BINDINGS[key]
+                    twist_msg = self.create_twist_msg(linear, angular)
+                    self.pub.publish(twist_msg)
+                    rospy.loginfo("Key: {} -> linear={:.1f}, angular={:.1f}".format(
+                        key, twist_msg.linear.x, twist_msg.angular.z))
+                else:
+                    # No valid key pressed - STOP the turtle
+                    # This ensures turtle stops when key is released
+                    self.stop_turtle()
                 
                 rate.sleep()
                 
@@ -159,8 +121,8 @@ class TurtleController:
             rospy.logerr("Error: {}".format(e))
         finally:
             # Ensure turtle stops when exiting
-            self.pub.publish(Twist())
-            listener.stop()
+            self.stop_turtle()
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)
             rospy.loginfo("Turtle Controller stopped")
 
 
