@@ -41,7 +41,7 @@ if [ -d "$PACKAGE_DST" ]; then
 fi
 
 cp -r $PACKAGE_SRC $PACKAGE_DST
-chmod +x $PACKAGE_DST/scripts/*.py
+chmod +x $PACKAGE_DST/scripts/*
 
 echo "[4/5] Building workspace..."
 cd $CATKIN_WS
