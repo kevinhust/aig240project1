@@ -1,0 +1,84 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import sys
+import select
+import termios
+import tty
+import rospy
+from geometry_msgs.msg import Twist
+
+HELP = """
+Controls:
+  w/s : forward / backward
+  a/d : rotate left / right
+  q/e : forward + left/right (arc)
+  z/c : backward + left/right (arc)
+  x   : stop
+CTRL-C to quit
+"""
+
+LIN_SPEED = 2.0
+ANG_SPEED = 2.0
+
+KEY_MAP = {
+    'w': ( LIN_SPEED,  0.0),
+    's': (-LIN_SPEED,  0.0),
+    'a': ( 0.0,  ANG_SPEED),
+    'd': ( 0.0, -ANG_SPEED),
+    'q': ( LIN_SPEED,  ANG_SPEED),
+    'e': ( LIN_SPEED, -ANG_SPEED),
+    'z': (-LIN_SPEED,  ANG_SPEED),
+    'c': (-LIN_SPEED, -ANG_SPEED),
+    'x': ( 0.0,  0.0)
+}
+
+def get_key(timeout=0.05):
+    rlist, _, _ = select.select([sys.stdin], [], [], timeout)
+    if rlist:
+        return sys.stdin.read(1)
+    return None
+
+def main():
+    rospy.init_node('turtle_controller', anonymous=True)
+
+    if len(sys.argv) < 2:
+        print("Usage: rosrun lab3_turtlesim turtle_controller turtle1")
+        return
+
+    turtle_name = sys.argv[1]
+    topic = '/' + turtle_name + '/cmd_vel'
+    pub = rospy.Publisher(topic, Twist, queue_size=10)
+
+    print(HELP)
+    print("Controlling turtle:", turtle_name)
+    print("Publishing to:", topic)
+
+    settings = termios.tcgetattr(sys.stdin)
+
+    try:
+        tty.setcbreak(sys.stdin.fileno())
+
+        while not rospy.is_shutdown():
+            key = get_key()
+            twist = Twist()
+
+            if key is None:
+                twist.linear.x = 0.0
+                twist.angular.z = 0.0
+            elif key == '\x03':
+                break
+            elif key in KEY_MAP:
+                twist.linear.x = KEY_MAP[key][0]
+                twist.angular.z = KEY_MAP[key][1]
+            else:
+                twist.linear.x = 0.0
+                twist.angular.z = 0.0
+
+            pub.publish(twist)
+
+    finally:
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+
+if __name__ == '__main__':
+    main()

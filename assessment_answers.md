@@ -1,5 +1,7 @@
 # AIG240 Project 1 - Assessment Questions
 
+Zhihuai Wang
+
 ## Question 1: What command did you use to create a ROS package?
 
 I used `catkin_create_pkg` to create the package:
