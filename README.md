@@ -51,7 +51,7 @@ chmod +x setup.sh
 cp -r lab3_turtlesim ~/catkin_ws/src/
 
 # 2. Make script executable
-chmod +x ~/catkin_ws/src/lab3_turtlesim/scripts/turtle_controller.py
+chmod +x ~/catkin_ws/src/lab3_turtlesim/scripts/turtle_controller
 
 # 3. Build
 cd ~/catkin_ws
@@ -79,7 +79,7 @@ roscore
 rosrun turtlesim turtlesim_node
 
 # Terminal 3
-rosrun lab3_turtlesim turtle_controller.py turtle1
+rosrun lab3_turtlesim turtle_controller turtle1
 ```
 
 ## Project Structure
@@ -95,7 +95,8 @@ aig240project1/
     ├── launch/
     │   └── turtle_controller.launch
     └── scripts/
-        └── turtle_controller.py
+        ├── spawn_turtle      # Script to spawn extra turtles
+        └── turtle_controller # Main controller script
 ```
 
 ## Assessment Questions
