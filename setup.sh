@@ -43,13 +43,10 @@ fi
 cp -r $PACKAGE_SRC $PACKAGE_DST
 chmod +x $PACKAGE_DST/scripts/*
 
-echo "[3.5/5] Refreshing ROS package profile..."
-catkin_make --pkg lab3_turtlesim
-rospack profile
-
 echo "[4/5] Building workspace..."
 cd $CATKIN_WS
 catkin_make
+rospack profile
 
 echo "[5/5] Sourcing workspace..."
 source $CATKIN_WS/devel/setup.bash
